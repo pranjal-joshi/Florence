@@ -3,13 +3,55 @@ from apiKeys import *
 import random
 from playsound import playsound
 import threading
+import os
 
+# Variables - Tunable params
 VOICE_GENDER = "female"
 VOICE_RATE = 165
-DEBUG = True
+
+# Microphone Tunable params
+CAL_DURATION = 1        # Seconds
+PAUSE_THRESH = 0.8      # Seconds
+DAMPING_RATIO = 0.7     # Default 0.15
+ENERGY_RATIO = 8        # Default 1.5
+
+# Strings - Mostly paths
 CRED_FILE = "Florence-5acbc25bc627.json"
 USER_CONF_FILE = "user.ini"
 START_SPEAKING_SOUND = "sounds/start_speaking.mp3"
+
+# Bools - Control toggles
+VERSION = "1.00a"
+AUTHOR = "Pranjal Joshi"
+DEBUG = True
+EN_START_SPEAKING_SOUND = True
+
+# Phrases
+
+InitiateWords = [
+    "hey","hi","high","i","hello","there","buddy","florence","lawrence"
+]
+
+FalseAlarmPhrases = [
+    "Okay, False Alarm!",
+    "Got it.",
+    "Okay!",
+    "Standing By",
+    "No problem, call me when you need me!",
+    "Sure, I will go back to the sleep then.",
+    "Sorry, My bad!"
+]
+
+InitiatePharases = [
+    "At your service!",
+    "Yes Boss?",
+    "Yes Sir!",
+    "How can I help you?",
+    "Hello. What can I do for you?",
+    "Hey. Do you need something?",
+    "I am here for you.",
+    "I am listening. Go ahead!"
+]
 
 PositiveWords = [
     "yes","yep","yeh","yeah","obviously","indeed","ok","okay","tell me","i do","sure","why not"
@@ -49,27 +91,44 @@ QuestionPhrases = [
     "Please let me know about "
 ]
 
+ConfusedPhrases = [
+    "Please tell me again.",
+    "Sorry, I don't understand what you just said!",
+    "I beg your pardon!",
+    "I missed what you said!",
+    "I am unable to understand."
+]
+
 YesNoQuestionPhrases = [
     "Would you like to ",
     "Do you want to ",
-    "Should I tell you ",
-    "Do you wish to ",
+    "Can I help you to",
+    "Is it okay to "
+    "Do you wish to "
 ]
+
+DontKnowPhrases = [
+    "Sorry, but I don't know the answer for this.",
+    "Right now I can't give you the answer of this."
+    "Actually, I don't know!",
+    "I still need to learn about many things and this is one of them.",
+    "Sir, I don't have any information about this.",
+    "Even I also need to know more about this!"
+]
+
+# Helper methods
+
+def clearScreen():
+    if os.name == 'nt':
+        os.system("cls")
+    else:
+        os.system("clear")
+
+def getRandomPhrase(listName):
+    return listName[random.randint(0,len(listName)-1)]
 
 def startingSpeakingSoundThread():
     playsound(START_SPEAKING_SOUND)
 
 def playStartSpeakingSound():
     threading.Thread(target=startingSpeakingSoundThread).start()
-
-def getYesNoQUestionPhrase():
-    return YesNoQUestionPhrases[random.randint(0,len(YesNoQUestionPhrases)-1)]
-
-def getSavingPhrase():
-    return SavingPhrases[random.randint(0,len(SavingPhrases)-1)]
-
-def getQuestionPhrase():
-    return QuestionPhrases[random.randint(0,len(QuestionPhrases)-1)]
-
-def getUnknownValueErrorPhrase():
-    return UnknownValueErrorPhrases[random.randint(0,len(UnknownValueErrorPhrases)-1)]
