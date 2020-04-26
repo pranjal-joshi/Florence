@@ -4,15 +4,19 @@ import speakerClass
 import recognizerClass
 import actionClass
 
-agent = actionClass.florenceActions()
-agent.getLocation()
-agent.getWeather()
+clearScreen()
+print("[+] Project Florence - A Python-based virtual assistant")
+print("[+] Author: %s" % AUTHOR)
+print("[+] Version: %s\n" % VERSION)
 
-'''
 speaker = speakerClass.florenceTalks(gender='female',rate=165)
-speaker.talk("The speech recognition service will shortly begin after this.")
-
+action = actionClass.florenceActions()
 recognizer = recognizerClass.florenceListens(CredFilePath=CRED_FILE)
-stt = recognizer.listenAndRecognize()
-speaker.talk(stt)
-'''
+
+speaker.talk("Welcome!")
+
+if __name__ == "__main__":
+    while True:
+        print("LOOPIN....")
+        fromMic, success = recognizer.listenAndRecognizeOffline(enableSound=False)
+        action.checkInitiateWord(fromMic, action.initUserInteraction)
