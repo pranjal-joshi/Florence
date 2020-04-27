@@ -30,7 +30,7 @@ class florenceListens:
             self.r.dynamic_energy_adjustment_damping = DAMPING_RATIO
             self.r.dynamic_energy_ratio = ENERGY_RATIO
 
-    def listen(self,recalibrate=True,CalibrateDuration=CAL_DURATION,startSpeakingSound=EN_START_SPEAKING_SOUND):
+    def listen(self,recalibrate=True,CalibrateDuration=CAL_DURATION,startSpeakingSound=EN_START_SPEAKING_SOUND,timeout=None):
         if startSpeakingSound:
             playStartSpeakingSound()
         with sr.Microphone() as source:
@@ -39,11 +39,11 @@ class florenceListens:
                 self.r.adjust_for_ambient_noise(source,duration=CalibrateDuration)
             print("[+] Listening...")
             try:
-                self.audio = self.r.listen(source,timeout=None)
+                self.audio = self.r.listen(source,timeout=timeout)
             except sr.WaitTimeoutError:
                 if DEBUG:
                     print("[Error] Listening timeout occured!")
-                self.listen(recalibrate=recalibrate,CalibrateDuration=CAL_DURATION,startSpeakingSound=EN_START_SPEAKING_SOUND)
+                self.listen(recalibrate=recalibrate,CalibrateDuration=CAL_DURATION,startSpeakingSound=startSpeakingSound,timeout=timeout)
     
     def recognize(self,language="en-IN",offlineMode=False):
         success = True
@@ -68,10 +68,10 @@ class florenceListens:
             print("[+] STT Output: %s" % self.out)
         return self.out, success
 
-    def listenAndRecognize(self,recalibrate=True,CalibrateDuration=CAL_DURATION,language="en-IN"):
-        self.listen(recalibrate=recalibrate,CalibrateDuration=CalibrateDuration)
+    def listenAndRecognize(self,recalibrate=True,CalibrateDuration=CAL_DURATION,language="en-IN",enableSound=True,timeout=None):
+        self.listen(recalibrate=recalibrate,CalibrateDuration=CalibrateDuration,timeout=timeout,startSpeakingSound=enableSound)
         return self.recognize(language=language,offlineMode=False)
 
-    def listenAndRecognizeOffline(self,recalibrate=True,CalibrateDuration=CAL_DURATION,language="en-IN",enableSound=False):
-        self.listen(recalibrate=recalibrate,CalibrateDuration=CalibrateDuration,startSpeakingSound=enableSound)
+    def listenAndRecognizeOffline(self,recalibrate=True,CalibrateDuration=CAL_DURATION,language="en-IN",enableSound=False,timeout=None):
+        self.listen(recalibrate=recalibrate,CalibrateDuration=CalibrateDuration,startSpeakingSound=enableSound,timeout=timeout)
         return self.recognize(language=language,offlineMode=True)

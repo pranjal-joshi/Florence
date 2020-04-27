@@ -1,11 +1,17 @@
 
 from globalVariables import *
+from apiKeys import *
 import speakerClass
 import recognizerClass
+import multimediaClass
 from configparser import ConfigParser
 from configparser import Error as ConfigParserError
 import pyowm
 from pyowm.exceptions import api_response_error, api_call_error
+import wikipedia as wiki
+import email
+import imaplib
+import base64
 
 class florenceActions:
 
@@ -30,6 +36,7 @@ class florenceActions:
                 self.config.write(f)
         self.speaker = speakerClass.florenceTalks(gender=VOICE_GENDER, rate=VOICE_RATE)
         self.recognizer = recognizerClass.florenceListens(CredFilePath=CRED_FILE)
+        self.media = multimediaClass.florenceMultimedia()
     
     def checkInitiateWord(self, input, onInitMethod):
         input = input.lower()
@@ -46,14 +53,22 @@ class florenceActions:
             print("[+] Decision Maker Query: %s" % str(query))
         if success:
             try:
-                query = str(query.lower())
-                query = query.split()
-                if "weather" in query or "temperature" in query:
+                query = query.lower()
+                if isWordInQuery(query,['wiki','wikipedia','summary','find','search','define','tell']):
+                    self.speaker.talk(self.getWikiInfo(query))
+                elif isWordInQuery(query,['youtube','play','stream']):
+                    self.handleYoutubeStream(query)
+                elif isWordInQuery(query,['weather','temperature']):
                     self.getWeather()
-                elif "false" in query or "nothing" in query:
+                elif isWordInQuery(query,['time','clock']):
+                    self.speaker.talk("Right now its " + getCurrentTime())
+                elif isWordInQuery(query,['false','nothing']):
                     self.speaker.talk(getRandomPhrase(FalseAlarmPhrases))
+                elif isWordInQuery(query,['mail','inbox']):
+                    self.checkGmail()
                 else:
-                    self.speaker.talk(getRandomPhrase(DontKnowPhrases))
+                    self.speaker.talk(self.getWikiInfo(query))
+                    #self.speaker.talk(getRandomPhrase(DontKnowPhrases))
             except Exception as e:
                 self.speaker.talk("Sorry, but following exception occured while parsing your query. " + str(e))
                 raise e
@@ -83,6 +98,54 @@ class florenceActions:
             self.speaker.talk(getRandomPhrase(ConfusedPhrases))
             return self.askYesNoQuestion(text)
 
+    def getWikiInfo(self, query):
+        self.speaker.talk(getRandomPhrase(ProcessingPhrases))
+        try:
+            query = removeStopWords(query)
+            return wiki.summary(query,sentences=2)
+        except wiki.exceptions.DisambiguationError as e:
+            e = str(e)
+            e = e.split('\n')
+            resp = "Your question seems ambiguous as the same keyword is applicable for "
+            try:
+                resp += e[1] + " "
+                resp += e[2] + " "
+                resp += e[3] + " "
+            except IndexError:
+                pass
+            resp += "etc."
+            return resp
+        except:
+            return getRandomPhrase(NetworkErrorPhrases)
+
+    def handleYoutubeStream(self,query):
+        self.speaker.talk(getRandomPhrase(ProcessingPhrases))
+        url,success = self.media.youtubeSearch(query)
+        if success:
+            status,success2 = self.media.youtubeStreamAudio(url)
+            if success2:
+                isStreaming = True
+                while isStreaming:
+                    try:
+                        fromMic, success = self.recognizer.listenAndRecognize(enableSound=False,timeout=STREAMING_LISTEN_TIMEOUT)
+                        fromMic = fromMic.lower()
+                        if isWordInQuery(fromMic,['stop','of','shut']):
+                            self.media.youtubeStreamControl('stop')
+                            isStreaming = False
+                            self.speaker.talk("Okay, I'm stopping the music streaming service for you!")
+                        elif isWordInQuery(fromMic,['pause','old','resume','play','again','continue','start']):
+                            self.media.youtubeStreamControl('toggle')
+                            self.speaker.talk("Okay!")
+                        if self.media.player.get_state() == VLC_STATE_ENDED:
+                            break
+                    except Exception as e:
+                        print(e)
+                isStreaming = False
+            else:
+                getRandomPhrase(NetworkErrorPhrases)
+        else:
+            getRandomPhrase(NetworkErrorPhrases)
+
     def getLocation(self):
         self.speaker.talk(getRandomPhrase(QuestionPhrases) + "your current location? Only name of the place is enough for now!")
         input, success = self.recognizer.listenAndRecognize()
@@ -105,21 +168,38 @@ class florenceActions:
             observation = owm.weather_at_place(loc)
             weather = observation.get_weather()
             fc = owm.three_hours_forecast(loc)
-            rain_prob = fc.will_have_rain()
-            rain_phrase = "no chances"
-            if rain_prob:
-                rain_phrase = "chances"
+            cloud_prob = fc.will_have_clouds()
+            cloud_phrase = "no chances"
+            if cloud_prob:
+                cloud_phrase = "chances"
             self.speaker.talk(
-                "Current temperature outside is "
+                "Right now, it is "
+                + getCurrentTime()
+                + ". The current temperature outside is "
                 + str(round(weather.get_temperature(unit='celsius')['temp']))
                 + " degree celsius. It is expected that today we will have a "
-                + weather.get_detailed_status() + ". Also there are " + rain_phrase
-                + " of rain. That's all for now."
+                + weather.get_detailed_status() + ". Also there are " + cloud_phrase
+                + " of clouds up there. That's all for now."
                 )
         except (api_response_error.NotFoundError, ConfigParserError):
             self.speaker.talk("The system API could not found weather reports for your location. Please correct the location by changing user configuration.")
             self.getLocation()
         except Exception as e:
             raise e
-            self.speaker.talk("The system is not able to connect to the weather service. Please check your network.")
+            self.speaker.talk(getRandomPhrase(NetworkErrorPhrases))
 
+    def checkGmail(self,user=GMAIL_USER,passwd=GMAIL_PASS):
+        mail = imaplib.IMAP4_SSL('imap.gmail.com')
+        mail.login(user,passwd)
+        mail.select('inbox')
+        result, data = mail.search(None,'(UNSEEN)')
+        id_list = data[0].split()
+        latest = id_list[-1]
+        result, data = mail.fetch(latest,'(RFC822)')
+        for response_part in data:
+            if isinstance(response_part, tuple):
+                msg = email.message_from_bytes(response_part[1])
+                sub = msg['subject']
+                sender = msg['from']
+                print("From: " + sender)
+                print("Subject: " + sub)

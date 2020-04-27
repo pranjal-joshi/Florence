@@ -1,6 +1,7 @@
 
 from globalVariables import *
 import pyttsx3
+import threading
 
 class florenceTalks:
 
@@ -28,6 +29,9 @@ class florenceTalks:
             print("[+] TTS Text: %s" % text)
         self.engine.say(text)
         self.engine.runAndWait()
+
+    def talkInBackground(self,text):
+        threading.Thread(target=self.talk,args=(text,)).start()
 
     def goodbye(self):
         self.engine.stop()
